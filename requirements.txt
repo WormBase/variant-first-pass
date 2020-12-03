@@ -1,1 +1,1 @@
-wbtools
+wbtools==1.0.1
