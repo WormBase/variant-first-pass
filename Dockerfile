@@ -13,8 +13,8 @@ ENV DB_NAME=""
 ENV DB_USER=""
 ENV DB_PASSWD=""
 ENV MAX_NUM_PAPERS=50
-ENV TAZENDRA_USER=""
-ENV TAZENDRA_PASSWD=""
+ENV TAZENDRA_SSH_USER=""
+ENV TAZENDRA_SSH_PASSWD=""
 ENV FROM_DATE="1970-01-01"
 ENV EMAIL_USER=""
 ENV EMAIL_HOST=""
@@ -37,8 +37,8 @@ CMD echo $DB_HOST > /etc/vfp_db_host && \
     echo $DB_USER > /etc/vfp_db_user && \
     echo $DB_PASSWD > /etc/vfp_db_passwd && \
     echo $MAX_NUM_PAPERS > /etc/vfp_max_num_papers && \
-    echo $TAZENDRA_USER > /etc/vfp_tazendra_user && \
-    echo $TAZENDRA_PASSWD > /etc/vfp_tazendra_passwd && \
+    echo $TAZENDRA_SSH_USER > /etc/vfp_tazendra_ssh_user && \
+    echo $TAZENDRA_SSH_PASSWD > /etc/vfp_tazendra_ssh_passwd && \
     echo $FROM_DATE > /etc/vfp_from_date && \
     echo $EMAIL_USER > /etc/vfp_email_user && \
     echo $EMAIL_HOST > /etc/vfp_email_host && \
