@@ -2,13 +2,13 @@ import argparse
 import logging
 import re
 import smtplib
-from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
 from wbtools.db.generic import WBGenericDBManager
-from wbtools.lib.nlp import get_new_variations_from_text, PaperSections
+from wbtools.lib.nlp.common import PaperSections
+from wbtools.lib.nlp.entity_extraction.new_variations import get_new_variations_from_text
 from wbtools.literature.corpus import CorpusManager
 
 
@@ -69,19 +69,19 @@ def main():
     if args.exclude_ids_file:
         Path(args.exclude_ids_file).touch()
     cm = CorpusManager()
-    cm.load_from_wb_database(args.db_name, args.db_user, args.db_password, args.db_host,
-                             tazendra_ssh_user=args.tazendra_ssh_user, tazendra_ssh_passwd=args.tazendra_ssh_password,
-                             from_date=args.from_date, max_num_papers=args.max_num_papers,
-                             exclude_ids=[line.strip() for line in open(args.exclude_ids_file)] if args.exclude_ids_file
-                             else None, must_have_svm=True, exclude_pap_types=args.exclude_pap_types)
+    cm.load_from_wb_database(
+        args.db_name, args.db_user, args.db_password, args.db_host, tazendra_ssh_user=args.tazendra_ssh_user,
+        tazendra_ssh_passwd=args.tazendra_ssh_password, from_date=args.from_date, max_num_papers=args.max_num_papers,
+        exclude_ids=[line.strip() for line in open(args.exclude_ids_file)] if args.exclude_ids_file else None,
+        must_have_automated_classification=True, exclude_pap_types=args.exclude_pap_types)
     remove_sections = [PaperSections.INTRODUCTION, PaperSections.REFERENCES]
     must_be_present = [PaperSections.RESULTS]
     if cm.size() > 0:
         db_manager = WBGenericDBManager(dbname=args.db_name, user=args.db_user, password=args.db_password,
                                         host=args.db_host)
         curated_alleles = db_manager.get_curated_variations(exclude_id_used_as_name=True)
-        results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;MATCHED_SENTENCES&emsp;LINK_TO_CURATION_STATUS<br/><br/>"
-        for paper in cm.corpus.values():
+        results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;MATCHED_SENTENCES<br/><br/>"
+        for paper in cm.get_all_papers():
             full_text = " ".join(paper.get_text_docs(include_supplemental=True, remove_sections=remove_sections,
                                                      must_be_present=must_be_present,
                                                      split_sentences=False, lowercase=False, tokenize=False,
@@ -90,7 +90,7 @@ def main():
                                             must_be_present=must_be_present,
                                             split_sentences=True, lowercase=False, tokenize=False,
                                             remove_stopwords=False, remove_alpha=False)
-            svm_value = paper.svm_values["seqchange"] if paper.svm_values["seqchange"] else "not_yet_classified"
+            aut_class_value = paper.get_aut_class_value_for_datatype("seqchange")
             extracted_alleles = get_new_variations_from_text(full_text)
             extracted_alleles = [allele for allele in extracted_alleles if allele[0] not in curated_alleles]
 
@@ -105,7 +105,8 @@ def main():
                                           f"oa=on&checkbox_cur=on&checkbox_svm=on&checkbox_str=on&checkbox_afp=on&che"
                                           f"ckbox_cfp=on&papers_per_page=10&checkbox_journal=on&checkbox_pmid=on&chec"
                                           f"kbox_pdf=on&action=Get+Results\">{paper.paper_id}</a>",
-                                          allele, suspicious, svm_value, str(count), matching_sentences]) + "<br/>"
+                                          allele, suspicious, aut_class_value, str(count), matching_sentences]) + \
+                           "<br/>"
 
         with open(args.exclude_ids_file, 'a') as exclude_ids_file:
             for paper in cm.get_all_papers():
