@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def send_email(subject, content, recipients, server_host, server_port, email_user, email_passwd):
-    body = MIMEText(content, "html")
+    body = MIMEText(content, "html", _charset='utf-8')
     msg = MIMEMultipart('alternative')
     msg.attach(body)
     msg['Subject'] = subject
