@@ -11,7 +11,6 @@ from wbtools.lib.nlp.common import PaperSections
 from wbtools.lib.nlp.entity_extraction.new_variations import get_new_variations_from_text
 from wbtools.literature.corpus import CorpusManager
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -87,7 +86,8 @@ def main():
                                             split_sentences=True, lowercase=False, tokenize=False,
                                             remove_stopwords=False, remove_alpha=False)
             aut_class_value = paper.get_aut_class_value_for_datatype("seqchange")
-            extracted_alleles = [(new_var, sent) for sent in sentences for new_var in get_new_variations_from_text(sent)]
+            extracted_alleles = [(new_var, sent.replace("\n", " ")) for sent in sentences for new_var in
+                                 get_new_variations_from_text(sent)]
             extracted_alleles = [allele for allele in extracted_alleles if allele[0][0] not in curated_alleles]
             allele_matches = defaultdict(list)
             allele_suspicious = {}
