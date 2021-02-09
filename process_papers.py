@@ -1,7 +1,7 @@
 import argparse
 import logging
-import re
 import smtplib
+from collections import defaultdict
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -82,31 +82,28 @@ def main():
         curated_alleles = db_manager.get_curated_variations(exclude_id_used_as_name=True)
         results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;MATCHED_SENTENCES<br/><br/>"
         for paper in cm.get_all_papers():
-            full_text = " ".join(paper.get_text_docs(include_supplemental=True, remove_sections=remove_sections,
-                                                     must_be_present=must_be_present,
-                                                     split_sentences=False, lowercase=False, tokenize=False,
-                                                     remove_stopwords=False, remove_alpha=False))
             sentences = paper.get_text_docs(include_supplemental=True, remove_sections=remove_sections,
                                             must_be_present=must_be_present,
                                             split_sentences=True, lowercase=False, tokenize=False,
                                             remove_stopwords=False, remove_alpha=False)
             aut_class_value = paper.get_aut_class_value_for_datatype("seqchange")
-            extracted_alleles = get_new_variations_from_text(full_text)
-            extracted_alleles = [allele for allele in extracted_alleles if allele[0] not in curated_alleles]
+            extracted_alleles = [(new_var, sent) for sent in sentences for new_var in get_new_variations_from_text(sent)]
+            extracted_alleles = [allele for allele in extracted_alleles if allele[0][0] not in curated_alleles]
+            allele_matches = defaultdict(list)
+            allele_suspicious = {}
+            for (allele, suspicious), matching_sentence in extracted_alleles:
+                allele_matches[allele].append(matching_sentence)
+                allele_suspicious[allele] = suspicious
 
-            for allele, suspicious in extracted_alleles:
-                allele_regex = r".*[ \(]" + allele + r"[\. \)\[].*"
-                matching_sentences = ",".join(["\"" + sentence + "\"" for sentence in sentences if
-                                               re.match(allele_regex, " " + sentence + " ")])
-                count = len(re.findall(allele_regex, matching_sentences))
+            for allele, matching_sentences in allele_matches.items():
                 results += "&emsp;".join([f"<a href=\"http://tazendra.caltech.edu/~postgres/cgi-bin/curation_status.c"
                                           f"gi?select_curator=two1823&select_datatypesource=caltech&specific_papers="
                                           f"{paper.paper_id}&select_topic=none&checkbox_newmutant=newmutant&checkbox_"
                                           f"oa=on&checkbox_cur=on&checkbox_svm=on&checkbox_str=on&checkbox_afp=on&che"
                                           f"ckbox_cfp=on&papers_per_page=10&checkbox_journal=on&checkbox_pmid=on&chec"
                                           f"kbox_pdf=on&action=Get+Results\">{paper.paper_id}</a>",
-                                          allele, suspicious, aut_class_value, str(count), matching_sentences]) + \
-                           "<br/>"
+                                          allele, allele_suspicious[allele], aut_class_value,
+                                          str(len(matching_sentences)), *matching_sentences]) + "<br/>"
 
         with open(args.exclude_ids_file, 'a') as exclude_ids_file:
             for paper in cm.get_all_papers():
