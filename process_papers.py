@@ -112,6 +112,7 @@ def main():
         send_email(subject=("[Test] " if args.testing else "") + "[Variant First Pass] New Results",
                    content=results, recipients=[args.email_recipient], server_host=args.email_host,
                    server_port=args.email_port, email_user=args.email_user, email_passwd=args.email_password)
+    logger.info("Pipeline finished successfully")
 
 
 if __name__ == '__main__':
