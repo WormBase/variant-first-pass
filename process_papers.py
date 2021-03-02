@@ -2,6 +2,7 @@ import argparse
 import logging
 import smtplib
 from collections import defaultdict
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -14,10 +15,14 @@ from wbtools.literature.corpus import CorpusManager
 logger = logging.getLogger(__name__)
 
 
-def send_email(subject, content, recipients, server_host, server_port, email_user, email_passwd):
+def send_email(subject, content, recipients, server_host, server_port, email_user, email_passwd, attachment):
     body = MIMEText(content, "html", _charset='utf-8')
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart()
     msg.attach(body)
+
+    csv_file = MIMEApplication(attachment, "text/csv")
+    csv_file.add_header('Content-Disposition', 'attachment', filename='results.csv')
+    msg.attach(csv_file)
     msg['Subject'] = subject
     msg['From'] = "outreach@wormbase.org"
     msg['To'] = ", ".join(recipients)
@@ -80,6 +85,8 @@ def main():
                                         host=args.db_host)
         curated_alleles = db_manager.get_curated_variations(exclude_id_used_as_name=True)
         results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;MATCHED_SENTENCES<br/><br/>"
+        results_attachment = "\t".join(["PAPER_ID", "VARIANT_NAME", "TYPE", "SVM_VALUE", "NUM_MATCHES_IN_PAPER",
+                                        "MATCHED_SENTENCES"]) + "\n"
         for paper in cm.get_all_papers():
             sentences = paper.get_text_docs(include_supplemental=True, remove_sections=remove_sections,
                                             must_be_present=must_be_present,
@@ -104,6 +111,8 @@ def main():
                                           f"kbox_pdf=on&action=Get+Results\">{paper.paper_id}</a>",
                                           allele, allele_suspicious[allele], aut_class_value,
                                           str(len(matching_sentences)), *matching_sentences]) + "<br/>"
+                results_attachment += "\t".join([paper.paper_id, allele, allele_suspicious[allele], aut_class_value,
+                                                 str(len(matching_sentences)), *matching_sentences]) + "\n"
 
         with open(args.exclude_ids_file, 'a') as exclude_ids_file:
             for paper in cm.get_all_papers():
@@ -111,7 +120,8 @@ def main():
 
         send_email(subject=("[Test] " if args.testing else "") + "[Variant First Pass] New Results",
                    content=results, recipients=[args.email_recipient], server_host=args.email_host,
-                   server_port=args.email_port, email_user=args.email_user, email_passwd=args.email_password)
+                   server_port=args.email_port, email_user=args.email_user, email_passwd=args.email_password,
+                   attachment=results_attachment)
     logger.info("Pipeline finished successfully")
 
 
