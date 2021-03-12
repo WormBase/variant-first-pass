@@ -8,8 +8,9 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 from wbtools.db.generic import WBGenericDBManager
-from wbtools.lib.nlp.common import PaperSections
-from wbtools.lib.nlp.entity_extraction.new_variations import get_new_variations_from_text
+from wbtools.lib.nlp.common import PaperSections, EntityType
+from wbtools.lib.nlp.entity_extraction.ntt_extractor import NttExtractor
+from wbtools.lib.nlp.entity_extraction.variations import is_new_variation_to_exclude, is_variation_suspicious
 from wbtools.literature.corpus import CorpusManager
 
 logger = logging.getLogger(__name__)
@@ -83,25 +84,29 @@ def main():
     if cm.size() > 0:
         db_manager = WBGenericDBManager(dbname=args.db_name, user=args.db_user, password=args.db_password,
                                         host=args.db_host)
-        curated_alleles = db_manager.get_curated_variations(exclude_id_used_as_name=True)
-        results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;MATCHED_SENTENCES<br/><br/>"
+        results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;" \
+                  "STRAINS_IN MATCHED_SENTENCES&emsp;MATCHED_SENTENCES<br/><br/>"
         results_attachment = "\t".join(["PAPER_ID", "VARIANT_NAME", "TYPE", "SVM_VALUE", "NUM_MATCHES_IN_PAPER",
-                                        "MATCHED_SENTENCES"]) + "\n"
+                                        "STRAINS_IN_MATCHED_SENTENCES", "MATCHED_SENTENCES"]) + "\n"
+        ntt_extractor = NttExtractor(db_manager=db_manager)
         for paper in cm.get_all_papers():
             sentences = paper.get_text_docs(include_supplemental=True, remove_sections=remove_sections,
                                             must_be_present=must_be_present,
                                             split_sentences=True, lowercase=False, tokenize=False,
                                             remove_stopwords=False, remove_alpha=False)
             aut_class_value = paper.get_aut_class_value_for_datatype("seqchange")
-            extracted_alleles = [(new_var, sent.replace("\n", " ")) for sent in sentences for new_var in
-                                 get_new_variations_from_text(sent)]
-            extracted_alleles = [allele for allele in extracted_alleles if allele[0][0] not in curated_alleles]
             allele_matches = defaultdict(list)
-            allele_suspicious = {}
-            for (allele, suspicious), matching_sentence in extracted_alleles:
-                allele_matches[allele].append(matching_sentence)
-                allele_suspicious[allele] = suspicious
-
+            allele_suspicious = defaultdict(bool)
+            allele_strains = defaultdict(set)
+            for sentence in sentences:
+                new_alleles = ntt_extractor.extract_entities(text=sentence, entity_type=EntityType.VARIATION,
+                                                             exclude_curated=True)
+                new_alleles = [allele for allele in new_alleles if not is_new_variation_to_exclude(allele)]
+                for allele in new_alleles:
+                    allele_matches[allele].append("\"" + sentence.replace("\n", " ") + "\"")
+                    allele_suspicious[allele] = is_variation_suspicious(allele)
+                    allele_strains[allele].update(ntt_extractor.extract_entities(sentence, EntityType.STRAIN,
+                                                                                 match_curated=True))
             for allele, matching_sentences in allele_matches.items():
                 results += "&emsp;".join([f"<a href=\"http://tazendra.caltech.edu/~postgres/cgi-bin/curation_status.c"
                                           f"gi?select_curator=two1823&select_datatypesource=caltech&specific_papers="
@@ -110,9 +115,13 @@ def main():
                                           f"ckbox_cfp=on&papers_per_page=10&checkbox_journal=on&checkbox_pmid=on&chec"
                                           f"kbox_pdf=on&action=Get+Results\">{paper.paper_id}</a>",
                                           allele, allele_suspicious[allele], aut_class_value,
-                                          str(len(matching_sentences)), *matching_sentences]) + "<br/>"
+                                          str(len(matching_sentences)), " ".join(allele_strains[allele]) if
+                                          allele_strains[allele] else "No Strains Found",
+                                          " ".join(matching_sentences)]) + "<br/>"
                 results_attachment += "\t".join([paper.paper_id, allele, allele_suspicious[allele], aut_class_value,
-                                                 str(len(matching_sentences)), *matching_sentences]) + "\n"
+                                                 str(len(matching_sentences)), " ".join(allele_strains[allele]) if
+                                                 allele_strains[allele] else "No Strains Found",
+                                                 " ".join(matching_sentences)]) + "\n"
 
         with open(args.exclude_ids_file, 'a') as exclude_ids_file:
             for paper in cm.get_all_papers():
