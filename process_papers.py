@@ -78,7 +78,7 @@ def main():
         args.db_name, args.db_user, args.db_password, args.db_host, tazendra_ssh_user=args.tazendra_ssh_user,
         tazendra_ssh_passwd=args.tazendra_ssh_password, from_date=args.from_date, max_num_papers=args.max_num_papers,
         exclude_ids=[line.strip() for line in open(args.exclude_ids_file)] if args.exclude_ids_file else None,
-        must_have_automated_classification=True, exclude_pap_types=args.exclude_pap_types)
+        must_be_autclass_flagged=True, exclude_pap_types=args.exclude_pap_types)
     remove_sections = [PaperSections.INTRODUCTION, PaperSections.REFERENCES]
     must_be_present = [PaperSections.RESULTS]
     if cm.size() > 0:
