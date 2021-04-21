@@ -85,7 +85,7 @@ def main():
         db_manager = WBGenericDBManager(dbname=args.db_name, user=args.db_user, password=args.db_password,
                                         host=args.db_host)
         results = "PAPER_ID&emsp;VARIANT_NAME&emsp;TYPE&emsp;SVM_VALUE&emsp;NUM_MATCHES_IN_PAPER&emsp;" \
-                  "STRAINS_IN MATCHED_SENTENCES&emsp;MATCHED_SENTENCES<br/><br/>"
+                  "STRAINS_IN_MATCHED_SENTENCES&emsp;MATCHED_SENTENCES<br/><br/>"
         results_attachment = "\t".join(["PAPER_ID", "VARIANT_NAME", "TYPE", "SVM_VALUE", "NUM_MATCHES_IN_PAPER",
                                         "STRAINS_IN_MATCHED_SENTENCES", "MATCHED_SENTENCES"]) + "\n"
         ntt_extractor = NttExtractor(db_manager=db_manager)
@@ -99,8 +99,9 @@ def main():
             allele_suspicious = defaultdict(bool)
             allele_strains = defaultdict(set)
             for sentence in sentences:
-                new_alleles = ntt_extractor.extract_entities(text=sentence, entity_type=EntityType.VARIATION,
-                                                             exclude_curated=True)
+                new_alleles = ntt_extractor.extract_all_entities_by_type(text=sentence,
+                                                                         entity_type=EntityType.VARIATION,
+                                                                         exclude_curated=True)
                 new_alleles = [allele for allele in new_alleles if not is_new_variation_to_exclude(allele)]
                 for allele in new_alleles:
                     allele_matches[allele].append("\"" + sentence.replace("\n", " ") + "\"")
