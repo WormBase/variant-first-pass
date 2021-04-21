@@ -106,8 +106,8 @@ def main():
                 for allele in new_alleles:
                     allele_matches[allele].append("\"" + sentence.replace("\n", " ") + "\"")
                     allele_suspicious[allele] = is_variation_suspicious(allele)
-                    allele_strains[allele].update(ntt_extractor.extract_entities(sentence, EntityType.STRAIN,
-                                                                                 match_curated=True))
+                    allele_strains[allele].update(ntt_extractor.extract_all_entities_by_type(
+                        text=sentence, entity_type=EntityType.STRAIN, match_curated=True))
             for allele, matching_sentences in allele_matches.items():
                 results += "&emsp;".join([f"<a href=\"http://tazendra.caltech.edu/~postgres/cgi-bin/curation_status.c"
                                           f"gi?select_curator=two1823&select_datatypesource=caltech&specific_papers="
