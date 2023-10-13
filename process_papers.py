@@ -44,10 +44,6 @@ def main():
     parser.add_argument("-U", "--db-user", metavar="db_user", dest="db_user", type=str)
     parser.add_argument("-P", "--db-password", metavar="db_password", dest="db_password", type=str, default="")
     parser.add_argument("-H", "--db-host", metavar="db_host", dest="db_host", type=str)
-    parser.add_argument("-w", "--tazendra-ssh-username", metavar="tazendra_ssh_user", dest="tazendra_ssh_user",
-                        type=str)
-    parser.add_argument("-z", "--tazendra_ssh_password", metavar="tazendra_ssh_password", dest="tazendra_ssh_password",
-                        type=str)
     parser.add_argument("-l", "--log-file", metavar="log_file", dest="log_file", type=str, default=None,
                         help="path to log file")
     parser.add_argument("-L", "--log-level", dest="log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR',
@@ -75,8 +71,8 @@ def main():
         Path(args.exclude_ids_file).touch()
     cm = CorpusManager()
     cm.load_from_wb_database(
-        args.db_name, args.db_user, args.db_password, args.db_host, tazendra_ssh_user=args.tazendra_ssh_user,
-        tazendra_ssh_passwd=args.tazendra_ssh_password, from_date=args.from_date, max_num_papers=args.max_num_papers,
+        args.db_name, args.db_user, args.db_password, args.db_host, from_date=args.from_date,
+        max_num_papers=args.max_num_papers,
         exclude_ids=[line.strip() for line in open(args.exclude_ids_file)] if args.exclude_ids_file else None,
         must_be_autclass_flagged=True, exclude_pap_types=args.exclude_pap_types)
     remove_sections = [PaperSections.INTRODUCTION, PaperSections.REFERENCES]
